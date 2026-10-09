@@ -1,403 +1,59 @@
-BasiXenuM
+# BasiXenuM
 
-BasiXenuM is a baseline reconnaissance helper designed to quickly identify the attack surface of a target during CTFs and penetration testing practice.
+BasiXenuM is a Python CLI for baseline reconnaissance in **authorized labs and CTFs**. It runs Nmap, organizes the output, and writes a triage report to help decide what to inspect next.
 
-The tool automates the first stage of enumeration by combining port discovery, service analysis, and triage reporting to help answer the question:
+## What it currently does
 
-Where should I start testing first?
+- Runs `nmap -sS -sC -sV` against one target.
+- Saves Nmap's normal, greppable, and XML output in a timestamped folder.
+- Parses open ports and writes a service-focused triage report.
+- Optionally runs `ffuf` for detected web services and `netexec` for detected SMB services, then adds their findings to the report.
 
-BasiXenuM is mainly intended for practice environments such as:
+The tool does not exploit targets. Only scan systems you own or are authorized to test.
 
-TryHackMe labs
+## Requirements
 
-Hack The Box machines
+- Python 3.10 or newer
+- Nmap on your `PATH`; SYN scanning may require elevated privileges
+- Optional: `ffuf`, `netexec`, and the wordlist at `/usr/share/seclists/Discovery/Web-Content/raft-medium-files-lowercase.txt` for follow-up tasks
 
-CTF challenges
+## Install
 
-penetration testing training labs
-
-Features
-
-Interactive reconnaissance workflow
-
-RustScan + Nmap integration
-
-Automatic triage report generation
-
-Focus Radar attack surface detection
-
-Attack Priority suggestions
-
-Likely Initial Attack Path logic
-
-Per-service analysis guidance
-
-Web service triage
-
-Optional automated follow-up reconnaissance
-
-Follow-up reconnaissance may automatically run:
-
-ffuf (web directory enumeration)
-
-netexec (SMB enumeration)
-
-Installation
-
-Clone the repository:
-
-git clone https://github.com/imnobodysterror/BasiXenuM
+```bash
+git clone https://github.com/foxcryptie/BasiXenuM.git
 cd BasiXenuM
-
-Install using pipx (recommended):
-
-pipx install -e .
-
-Verify installation:
-
+python -m pip install -e .
 basixenum version
-Usage
-Interactive Mode (recommended)
+```
 
-Run:
+## Run
 
+Interactive:
+
+```bash
 basixenum
+```
 
-The wizard will ask for:
+With a target:
 
-Target IP / hostname
+```bash
+basixenum enum 10.10.10.10 --profile lab
+```
 
-Scan mode (fast / full)
+The current CLI still asks whether to save a text log and run follow-up tasks. To request follow-up tasks with a flag:
 
-Optional logging
+```bash
+basixenum enum 10.10.10.10 --profile lab --run-followups
+```
 
-Whether automated follow-up reconnaissance should run
+Outputs are written under `out/<profile>/<target>/<timestamp>/`. A typical run produces `nmap.nmap`, `nmap.gnmap`, `nmap.xml`, and `triage_report.txt`. Optional follow-ups produce their own output files.
 
-Enumeration will then start automatically.
+## Current limits
 
-Direct Mode
+The scan command is currently fixed to `nmap -sS -sC -sV`. The CLI accepts mode, RustScan, custom Nmap, and UDP options, but those options are not yet connected to the scan command. The web follow-up currently assumes HTTP on the target's default port and a local SecLists wordlist. No automated tests are included yet.
 
-Run directly against a target:
+## Next improvements
 
-basixenum enum 10.10.10.10
-
-Example:
-
-basixenum enum 10.10.10.10 --mode fast --profile thm
-Scan Modes
-FAST (default)
-
-Workflow:
-
-RustScan → discover open ports  
-Nmap → service detection + default scripts
-
-Nmap flags used:
-
--sC -sV
-FULL
-
-Includes everything from FAST plus additional fingerprinting:
-
--O
---traceroute
---reason
-
-If no ports were discovered earlier:
-
--p-
-
-Optional UDP scanning:
-
---udp
---udp-top-ports <number>
-Output Structure
-
-Results are stored in:
-
-out/<profile>/<target>/<timestamp>/
-
-Example:
-
-out/thm/10.113.137.78/20260307_012945/
-
-Typical generated files:
-
-nmap.nmap
-nmap.gnmap
-nmap.xml
-triage_report.txt
-ffuf_web_dirs.json
-<target>.txt   (optional log)
-Triage Report
-
-BasiXenuM generates a structured triage report to guide early reconnaissance.
-
-The report includes:
-
-Target Information
-
-Open Ports
-
-Service Summary
-
-Interesting Findings
-
-Attack Priority
-
-Likely Initial Attack Path
-
-Quick Wins
-
-Web Triage
-
-Possible Vulnerability Matches
-
-Service Analysis
-
-Recommended Next Steps
-
-If follow-up tasks are enabled, the report also contains a FOLLOW-UP RECON section summarizing additional findings from tools like ffuf or netexec.
-
-Focus Radar
-
-Focus Radar highlights likely attack surfaces based on detected services.
-
-Signal	Ports
-WEB	80, 443, 8080, 8443
-SMB	139, 445
-WINRM	5985, 5986
-RDP	3389
-DNS	53
-LDAP	389, 636
-KERBEROS	88
-RPC	111, 135
-NFS	2049
-MAIL	25, 110, 143, 587, 993, 995
-
-These signals help prioritize reconnaissance.
-
-Known Behavior
-
-Some RustScan versions reject the argument:
-
---no-nmap
-
-If RustScan fails, BasiXenuM automatically falls back to Nmap-only scanning.
-
-Roadmap
-
-Planned improvements:
-
-RustScan compatibility improvements
-
-smarter service fingerprinting
-
-improved follow-up task logic
-
-enhanced report categorization
-
-License
-
-INBD-0404BasiXenuM
-
-BasiXenuM is a baseline reconnaissance helper designed to quickly identify the attack surface of a target during CTFs and penetration testing practice.
-
-The tool automates the first stage of enumeration by combining port discovery, service analysis, and triage reporting to help answer the question:
-
-Where should I start testing first?
-
-BasiXenuM is mainly intended for practice environments such as:
-
-TryHackMe labs
-
-Hack The Box machines
-
-CTF challenges
-
-penetration testing training labs
-
-Features
-
-Interactive reconnaissance workflow
-
-RustScan + Nmap integration
-
-Automatic triage report generation
-
-Focus Radar attack surface detection
-
-Attack Priority suggestions
-
-Likely Initial Attack Path logic
-
-Per-service analysis guidance
-
-Web service triage
-
-Optional automated follow-up reconnaissance
-
-Follow-up reconnaissance may automatically run:
-
-ffuf (web directory enumeration)
-
-netexec (SMB enumeration)
-
-Installation
-
-Clone the repository:
-
-git clone https://github.com/imnobodysterror/BasiXenuM
-cd BasiXenuM
-
-Install using pipx (recommended):
-
-pipx install -e .
-
-Verify installation:
-
-basixenum version
-Usage
-Interactive Mode (recommended)
-
-Run:
-
-basixenum
-
-The wizard will ask for:
-
-Target IP / hostname
-
-Scan mode (fast / full)
-
-Optional logging
-
-Whether automated follow-up reconnaissance should run
-
-Enumeration will then start automatically.
-
-Direct Mode
-
-Run directly against a target:
-
-basixenum enum 10.10.10.10
-
-Example:
-
-basixenum enum 10.10.10.10 --mode fast --profile thm
-Scan Modes
-FAST (default)
-
-Workflow:
-
-RustScan → discover open ports  
-Nmap → service detection + default scripts
-
-Nmap flags used:
-
--sC -sV
-FULL
-
-Includes everything from FAST plus additional fingerprinting:
-
--O
---traceroute
---reason
-
-If no ports were discovered earlier:
-
--p-
-
-Optional UDP scanning:
-
---udp
---udp-top-ports <number>
-Output Structure
-
-Results are stored in:
-
-out/<profile>/<target>/<timestamp>/
-
-Example:
-
-out/thm/10.113.137.78/20260307_012945/
-
-Typical generated files:
-
-nmap.nmap
-nmap.gnmap
-nmap.xml
-triage_report.txt
-ffuf_web_dirs.json
-<target>.txt   (optional log)
-Triage Report
-
-BasiXenuM generates a structured triage report to guide early reconnaissance.
-
-The report includes:
-
-Target Information
-
-Open Ports
-
-Service Summary
-
-Interesting Findings
-
-Attack Priority
-
-Likely Initial Attack Path
-
-Quick Wins
-
-Web Triage
-
-Possible Vulnerability Matches
-
-Service Analysis
-
-Recommended Next Steps
-
-If follow-up tasks are enabled, the report also contains a FOLLOW-UP RECON section summarizing additional findings from tools like ffuf or netexec.
-
-Focus Radar
-
-Focus Radar highlights likely attack surfaces based on detected services.
-
-Signal	Ports
-WEB	80, 443, 8080, 8443
-SMB	139, 445
-WINRM	5985, 5986
-RDP	3389
-DNS	53
-LDAP	389, 636
-KERBEROS	88
-RPC	111, 135
-NFS	2049
-MAIL	25, 110, 143, 587, 993, 995
-
-These signals help prioritize reconnaissance.
-
-Known Behavior
-
-Some RustScan versions reject the argument:
-
---no-nmap
-
-If RustScan fails, BasiXenuM automatically falls back to Nmap-only scanning.
-
-Roadmap
-
-Planned improvements:
-
-RustScan compatibility improvements
-
-smarter service fingerprinting
-
-improved follow-up task logic
-
-enhanced report categorization
-
-License
-
-INBD-0404
+- Connect scan flags to the Nmap/RustScan workflow.
+- Make web follow-ups use detected schemes and ports.
+- Add parser and CLI tests.
