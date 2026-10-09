@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "basixenum"
-version = "0.1.0"
+version = "0.3.1"
 description = "Baseline enumeration CLI that runs scans and stores results in a clean structure."
 readme = "README.md"
 requires-python = ">=3.10"
