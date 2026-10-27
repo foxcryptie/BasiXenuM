@@ -27,6 +27,20 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(run(["nmap"], dry_run=False), 127)
         self.assertIn("Required command not found: nmap", stderr.getvalue())
 
+    def test_scan_writes_report_from_nmap_output(self):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as tmp:
+            def fake_run(command, dry_run):
+                self.assertFalse(dry_run)
+                prefix = command[command.index("-oA") + 1]
+                Path(prefix + ".nmap").write_text("80/tcp open http Apache httpd\n")
+                return 0
+
+            with patch("basixenum.cli.run", side_effect=fake_run), redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["enum", "example.test", "--out", tmp]), 0)
+            reports = list(Path(tmp).rglob("triage_report.txt"))
+            self.assertEqual(len(reports), 1)
+            self.assertIn("80/tcp http Apache httpd", reports[0].read_text())
+
     def test_open_ports_are_read_from_normal_nmap_output(self):
         with tempfile.TemporaryDirectory(dir=Path(__file__).resolve().parents[1]) as tmp:
             scan = Path(tmp) / "nmap.nmap"
