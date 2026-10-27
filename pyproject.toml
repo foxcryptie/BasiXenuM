@@ -23,4 +23,4 @@ dependencies = []
 basixenum = "basixenum.cli:main"
 
 [tool.setuptools]
-packages = ["basixenum"]
+packages = ["basixenum", "basixenum.tasks"]

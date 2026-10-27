@@ -11,7 +11,6 @@ import sys
 from pathlib import Path
 
 from basixenum.report import detect_focus_labels, render_triage_report
-from basixenum.vulns import analyze_services
 from basixenum.runner import run_task
 from basixenum.tasks.web import FfufTask
 from basixenum.tasks.smb import NetexecSmbTask
@@ -83,40 +82,17 @@ def _prompt_target(current: str | None) -> str:
             return t
 
 
-def _prompt_mode(current: str | None) -> str:
-    if current in ("fast", "full"):
-        return current
-
-    try:
-        raw = input("Mode [fast/full] (default: fast): ").strip().lower()
-    except KeyboardInterrupt:
-        print("\n[!] BasiXenuM interrupted by user.")
-        sys.exit(0)
-
-    return raw if raw in ("fast", "full") else "fast"
-
-
-def _prompt_save_txt() -> bool:
-    try:
-        raw = input("Save .txt log? [y/N]: ").strip().lower()
-    except KeyboardInterrupt:
-        print("\n[!] BasiXenuM interrupted by user.")
-        sys.exit(0)
-
-    return raw in ("y", "yes")
-
-
 def _prompt_followups(current: bool = False) -> bool:
     if current:
         return True
 
     try:
-        raw = input("Run follow-up recon tasks? [Y/n]: ").strip().lower()
+        raw = input("Run follow-up recon tasks? [y/N]: ").strip().lower()
     except KeyboardInterrupt:
         print("\n[!] BasiXenuM interrupted by user.")
         sys.exit(0)
 
-    return raw not in ("n", "no")
+    return raw in ("y", "yes")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -132,29 +108,6 @@ def build_parser() -> argparse.ArgumentParser:
     enum_p.add_argument("-p", "--profile", default="default")
     enum_p.add_argument("-o", "--out", default="out")
 
-    enum_p.add_argument(
-        "--mode",
-        choices=["fast", "full"],
-        default=None,
-    )
-
-    enum_p.add_argument(
-        "--nmap-args",
-        default="-sS -sC -sV",
-    )
-
-    enum_p.add_argument(
-        "--rustscan-ports",
-        default="1-65535",
-    )
-
-    enum_p.add_argument(
-        "--rustscan-args",
-        default="",
-    )
-
-    enum_p.add_argument("--udp", action="store_true")
-    enum_p.add_argument("--udp-top-ports", default="200")
     enum_p.add_argument("--dry-run", action="store_true")
     enum_p.add_argument(
         "--run-followups",
@@ -177,6 +130,9 @@ def run(cmd: list[str], dry_run: bool) -> int:
     try:
         p = subprocess.run(cmd)
         return p.returncode
+    except FileNotFoundError:
+        print(f"[!] Required command not found: {cmd[0]}", file=sys.stderr)
+        return 127
     except KeyboardInterrupt:
         print("\n[!] Scan cancelled by user.")
         return 130
@@ -287,15 +243,18 @@ def cmd_enum(args: argparse.Namespace) -> int:
 
     base = Path(args.out).expanduser().resolve()
     outdir = base / prof / tgt_folder / timestamp()
-    outdir.mkdir(parents=True, exist_ok=True)
-
-    print(f"[BasiXenuM] profile={prof} target={args.target} mode={args.mode}")
-    print(f"[out] {outdir}")
 
     oA = outdir / "nmap"
     nmap_cmd = ["nmap", "-sS", "-sC", "-sV", "-oA", str(oA), args.target]
 
-    rc = run(nmap_cmd, args.dry_run)
+    if args.dry_run:
+        return run(nmap_cmd, dry_run=True)
+
+    outdir.mkdir(parents=True, exist_ok=True)
+    print(f"[BasiXenuM] profile={prof} target={args.target}")
+    print(f"[out] {outdir}")
+
+    rc = run(nmap_cmd, dry_run=False)
     if rc != 0:
         print(f"[!] nmap exited with code {rc}")
         return rc
@@ -303,7 +262,6 @@ def cmd_enum(args: argparse.Namespace) -> int:
     nmap_txt = Path(str(oA) + ".nmap")
     port_entries = parse_open_ports_from_nmap(nmap_txt)
 
-    service_analysis = analyze_services(port_entries)
     focus_labels = detect_focus_labels(port_entries)
 
     print(f"[focus] {', '.join(focus_labels) if focus_labels else 'none'}")
@@ -319,11 +277,9 @@ def cmd_enum(args: argparse.Namespace) -> int:
 
     report_text = render_triage_report(
         target=args.target,
-        mode=args.mode,
         outdir=outdir,
         port_entries=port_entries,
         scan_time=dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        service_analysis=service_analysis,
     )
 
     report_text += format_followup_section(followup_results)
@@ -353,10 +309,9 @@ def main(argv=None) -> int:
         return cmd_version()
 
     if args.cmd == "enum":
-        args.target = _prompt_target(getattr(args, "target", None))
-        args.mode = _prompt_mode(getattr(args, "mode", None))
-        args.save_txt = _prompt_save_txt()
-        args.run_followups = _prompt_followups(getattr(args, "run_followups", False))
+        if args.target is None:
+            args.target = _prompt_target(None)
+            args.run_followups = _prompt_followups(args.run_followups)
         return cmd_enum(args)
 
     parser.print_help()
@@ -369,3 +324,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n[!] BasiXenuM interrupted.")
         sys.exit(0)
+
+
